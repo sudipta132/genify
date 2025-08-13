@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GENIFY — instant presence</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+</head>
+<body>
+  <div class="app">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <img id="brand-logo" src="logo.png" alt="GENIFY logo">
+        <div class="brand-text">
+          <div class="brand-title">GENIFY</div>
+          <div class="brand-tag">instant presence</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="home">Home</button>
+        <button class="nav-item" data-view="take">Take Attendance</button>
+        <button class="nav-item" data-view="records">View Records</button>
+        <button class="nav-item" data-view="students">Manage Students</button>
+        <button class="nav-item" data-view="settings">Settings</button>
+      </nav>
+
+      <div class="top-actions">
+        <button id="snap-btn" class="icon-btn" title="Snapshot">📸</button>
+        <button id="undo-btn" class="icon-btn" title="Undo last">↶</button>
+        <button id="export-btn" class="icon-btn" title="Export CSV">⬇</button>
+      </div>
+    </header>
+
+    <main class="main">
+
+      <section id="view-home" class="view active">
+        <div class="hero">
+          <div class="hero-left">
+            <h1>GENIFY</h1>
+            <h2>instant presence</h2>
+            <div class="hero-actions">
+              <button class="btn primary" data-go="take">Start Attendance</button>
+              <button class="btn ghost" data-go="records">View Records</button>
+            </div>
+          </div>
+          <div class="hero-right">
+            <img src="https://images.unsplash.com/photo-1588702547923-7093a6c3ba33?q=80&w=900&auto=format&fit=crop&ixlib=rb-4.0.3&s=6a9f2d6c8c0aa6b9" alt="hero">
+          </div>
+        </div>
+
+        <h3 class="row-title">Quick Actions</h3>
+        <div class="tiles" id="quick-tiles">
+          <div class="tile" data-go="take"><img src="https://source.unsplash.com/480x300/?classroom" alt=""><div>Take Attendance</div></div>
+          <div class="tile" data-go="students"><img src="https://source.unsplash.com/480x300/?students" alt=""><div>Manage Students</div></div>
+          <div class="tile" data-go="records"><img src="https://source.unsplash.com/480x300/?data" alt=""><div>View Records</div></div>
+          <div class="tile" data-go="settings"><img src="https://source.unsplash.com/480x300/?settings" alt=""><div>Settings</div></div>
+        </div>
+      </section>
+
+      <section id="view-take" class="view hidden">
+        <div class="take-grid">
+          <div class="panel camera-panel">
+            <div class="camera-top">
+              <select id="take-class"></select>
+              <div class="camera-tools">
+                <button id="take-snap" class="tool">📸</button>
+                <button id="take-undo" class="tool">↶</button>
+                <button id="take-save" class="tool primary">Save</button>
+              </div>
+            </div>
+
+            <div id="webcam-wrap" class="webcam-wrap"></div>
+
+            <div class="live-row">
+              <div id="live-status" class="live-status">Initializing...</div>
+              <div class="progress-inline">
+                <div class="progress-track"><div id="global-bar" class="progress-fill"></div></div>
+                <div id="global-pct" class="pct">0%</div>
+              </div>
+            </div>
+
+            <div class="sliders">
+              <label>Threshold <span id="threshold-label">95%</span>
+                <input id="threshold" type="range" min="50" max="99" value="95">
+              </label>
+              <label>Cooldown <span id="cooldown-label">15</span>s
+                <input id="cooldown" type="range" min="3" max="120" value="15">
+              </label>
+            </div>
+          </div>
+
+          <div class="panel roster-panel">
+            <div class="panel-title">Class Roster</div>
+            <div id="roster-list" class="roster-list"></div>
+            <div class="roster-actions">
+              <input id="new-student" placeholder="New student name">
+              <select id="roster-class"></select>
+              <button id="add-student" class="btn primary">Add</button>
+              <button id="clear-class" class="btn">Clear</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-records" class="view hidden">
+        <div class="panel">
+          <div class="records-top">
+            <label>Date <input id="records-date" type="date"></label>
+            <label>Class <select id="records-class"></select></label>
+            <input id="records-search" placeholder="Search name">
+            <button id="records-export" class="btn primary">Export CSV</button>
+          </div>
+
+          <div class="table-wrap">
+            <table id="records-table">
+              <thead><tr><th>Name</th><th>Present</th><th>Time</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-students" class="view hidden">
+        <div class="panel">
+          <div class="students-top">
+            <input id="class-name" placeholder="New class name">
+            <button id="add-class" class="btn">Add class</button>
+          </div>
+          <div id="classes-row" class="classes-row"></div>
+
+          <div class="table-wrap">
+            <table id="students-table">
+              <thead><tr><th>Name</th><th>Class</th><th>Action</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-settings" class="view hidden">
+        <div class="panel">
+          <div class="setting-row">
+            <label>Teachable Machine model URL</label>
+            <input id="model-url" type="text">
+            <button id="load-model" class="btn">Load model</button>
+          </div>
+          <div class="setting-row">
+            <label>Theme</label>
+            <select id="theme-select"><option value="dark">Dark</option><option value="light">Light</option></select>
+          </div>
+          <div class="setting-row">
+            <button id="reset-all" class="btn">Reset all local data</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
